@@ -1,48 +1,25 @@
 import { Helper, Model, FilteredAdapter, BatchAdapter } from 'casbin';
 import { CasbinRule } from './casbinRule';
-// import {
-//   Connection,
-//   ConnectionOptions,
-//   createConnection,
-//   getRepository,
-// } from 'typeorm';
 import { CasbinMongoRule } from './casbinMongoRule';
-import {
-  Options,
-  MikroORM,
-} from '@mikro-orm/core';
-import { MongoDriver,   EntityManager, } from '@mikro-orm/mongodb';
-type GenericCasbinRule = CasbinRule | CasbinMongoRule;
+import { MikroORM, MetadataStorage } from '@mikro-orm/core';
+import { MikroORMAdapterOptions } from './types';
+
+type GenericCasbinRule = CasbinRule | CasbinMongoRule | any;
 type CasbinRuleConstructor = new (...args: any[]) => GenericCasbinRule;
 
-// interface ExistentConnection {
-//   connection: Connection;
-// }
-// export type MikroORMAdapterOptions = ExistentConnection | ConnectionOptions;
-
 /**
- * MikroORMAdapter represents the TypeORM filtered adapter for policy storage.
+ * MikroORMAdapter represents the MikroORM filtered adapter for policy storage.
+ * Supports both standalone mode (creates new connection) and shared mode (reuses existing MikroORM instance).
  */
 export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
-  private option: Options;
-  // private typeorm: Connection;
-  private mikroOrm: MikroORM<MongoDriver>;
-  // private em: EntityManager;
+  private option: MikroORMAdapterOptions;
+  private mikroOrm!: MikroORM;
   private filtered = false;
+  private isSharedInstance = false;
+  private casbinRuleEntity?: any;
 
-  private constructor(option: Options) {
+  private constructor(option: MikroORMAdapterOptions) {
     this.option = option;
-    // this.mikroOrm = new MikroORM<MongoDriver>(option)
-    // if (this.mikroOrm.isConnected()) {
-    //   this.option = this.mikroOrm.config
-    // }
-    // if ((option as ExistentConnection).connection) {
-    //   this.mikroOrm =
-    // this.mikroOrm = (option as ExistentConnection).connection;
-    // this.option = this.mikroOrm.getConnectionOptions()
-    // } else {
-    //   this.option = option as ConnectionOptions;
-    // }
   }
 
   public isFiltered(): boolean {
@@ -51,44 +28,123 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
 
   /**
    * newAdapter is the constructor.
-   * @param option typeorm connection option
+   * @param option MikroORM adapter options
    */
-  public static async newAdapter(option: Options) {
+  public static async newAdapter(option: MikroORMAdapterOptions) {
     let a: MikroORMAdapter;
 
-    const defaults = {
-      synchronize: true,
-      name: 'node-casbin-official',
-    };
-    const options = option as Options;
-    const entities = { entities: [ this.getCasbinRuleType('mongodb') ] };
-    const configuration = Object.assign(defaults, options);
-    a = new MikroORMAdapter(Object.assign(configuration, entities));
+    // If mikroOrm instance is provided, use shared mode
+    if (option.mikroOrm) {
+      a = new MikroORMAdapter(option);
+      a.mikroOrm = option.mikroOrm;
+      a.isSharedInstance = true;
+      
+      // Find the Casbin entity by table name in shared instance
+      const tableName = option.tableName || 'sys_casbin_rule';
+      const metadata = a.mikroOrm.getMetadata();
+      const allEntities = metadata.getAll();
+      
+      // Find entity by table name
+      for (const [entityName, meta] of Object.entries(allEntities)) {
+        if (meta.tableName === tableName) {
+          a.casbinRuleEntity = meta.class;
+          break;
+        }
+      }
+      
+      if (!a.casbinRuleEntity) {
+        throw new Error(`Casbin entity with table name '${tableName}' not found in MikroORM metadata. Please ensure the entity is registered in your MikroORM configuration.`);
+      }
+      
+      return a;
+    }
+    
+    // Standalone mode: create new connection
+    const dbType = this.detectDatabaseType(option);
+    const casbinEntity = this.getCasbinRuleType(dbType);
+    
+    // Apply custom table name if specified
+    if (option.tableName) {
+      const metadata = MetadataStorage.getMetadataFromDecorator(casbinEntity);
+      if (metadata) {
+        metadata.tableName = option.tableName;
+      }
+    }
+    
+    // Merge Casbin entity with user's entities if they exist
+    const opts = option as any;
+    const userEntities = opts.entities || [];
+    const allEntities = Array.isArray(userEntities) 
+      ? [...userEntities, casbinEntity]
+      : [casbinEntity];
+    
+    const configuration = Object.assign({}, option, { entities: allEntities });
+    a = new MikroORMAdapter(configuration);
     await a.open();
     return a;
   }
 
+  /**
+   * Detect database type from driver option or existing MikroORM instance
+   * @param option - MikroORM configuration options
+   * @returns Database type string
+   */
+  private static detectDatabaseType(option: MikroORMAdapterOptions): string {
+    // If using shared instance, detect from the instance
+    if (option.mikroOrm) {
+      const driverName = option.mikroOrm.config.get('driver')?.name || '';
+      const lowerName = driverName.toLowerCase();
+      
+      if (lowerName.includes('mongo')) return 'mongo';
+      if (lowerName.includes('mysql')) return 'mysql';
+      if (lowerName.includes('postgres') || lowerName.includes('pg')) return 'postgresql';
+      if (lowerName.includes('sqlite')) return 'sqlite';
+      if (lowerName.includes('mariadb')) return 'mariadb';
+      if (lowerName.includes('mssql') || lowerName.includes('sqlserver')) return 'mssql';
+      
+      return 'mysql'; // default
+    }
+    
+    const opts = option as any;
+    
+    // Check driver field (required in MikroORM v6)
+    if (opts.driver) {
+      const driverName = opts.driver.name || opts.driver.constructor?.name || '';
+      const lowerName = driverName.toLowerCase();
+      
+      if (lowerName.includes('mongo')) return 'mongo';
+      if (lowerName.includes('mysql')) return 'mysql';
+      if (lowerName.includes('postgres') || lowerName.includes('pg')) return 'postgresql';
+      if (lowerName.includes('sqlite')) return 'sqlite';
+      if (lowerName.includes('mariadb')) return 'mariadb';
+      if (lowerName.includes('mssql') || lowerName.includes('sqlserver')) return 'mssql';
+    }
+    
+    // Fallback: try to detect from clientUrl for MongoDB
+    if (opts.clientUrl && opts.clientUrl.includes('mongodb://')) {
+      return 'mongo';
+    }
+    
+    // Default to relational database (use CasbinRule)
+    return 'mysql';
+  }
+
   private async open() {
     if (!this.mikroOrm) {
-      this.mikroOrm = await MikroORM.init<MongoDriver>({
-        type: this.option.type,
-        entities: this.option.entities,
-        dbName: this.option.dbName,
-        debug: this.option.debug,
-        highlighter: this.option.highlighter,
-        // allowGlobalContext: this.option.allowGlobalContext,
-      });
-      // this.typeorm = await createConnection(this.option);
+      this.mikroOrm = await MikroORM.init(this.option as any);
     }
     const isConnected = await this.mikroOrm.isConnected();
-    // if (!await this.mikroOrm.isConnected())
     if (!isConnected) {
       await this.mikroOrm.connect();
     }
-    // this.em = this.mikroOrm.em
   }
 
   public async close() {
+    // Don't close shared instances
+    if (this.isSharedInstance) {
+      return;
+    }
+    
     const isConnected = await this.mikroOrm.isConnected();
     if (isConnected) {
       await this.mikroOrm.close(true);
@@ -97,8 +153,7 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
 
   private async clearTable() {
     const em = this.mikroOrm.em.fork();
-    await em.nativeDelete(this.getCasbinRuleConstructor(), {})
-    // await this.mikroOrm.em.getRepository(this.getCasbinRuleConstructor()).clear();
+    await em.nativeDelete(this.getCasbinRuleConstructor(), {});
   }
 
   private loadPolicyLine(line: GenericCasbinRule, model: Model) {
@@ -116,11 +171,6 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
    * loadPolicy loads all policy rules from the storage.
    */
   public async loadPolicy(model: Model) {
-    // const lines = await getRepository(
-    //   this.getCasbinRuleConstructor(),
-    //   this.option.name,
-    // ).find();
-    // const lines = await this.mikroOrm.em.getRepository(this.getCasbinRuleConstructor())
     const em = this.mikroOrm.em.fork();
     const lines = await em.find(this.getCasbinRuleConstructor(), {});
     for (const line of lines) {
@@ -130,13 +180,8 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
 
   // Loading policies based on filter condition
   public async loadFilteredPolicy(model: Model, filter?: object) {
-    // const filteredLines = await getRepository(
-    // this.getCasbinRuleConstructor(),
-    // this.option.name,
-    // ).find(filter);
     const em = this.mikroOrm.em.fork();
-
-    const filteredLines = await em.find(this.getCasbinRuleConstructor(), { ...filter })
+    const filteredLines = await em.find(this.getCasbinRuleConstructor(), { ...filter });
     for (const line of filteredLines) {
       this.loadPolicyLine(line, model);
     }
@@ -200,7 +245,8 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
     const em = this.mikroOrm.em.fork();
 
     if (Array.isArray(lines) && lines.length > 0) {
-      await em.getDriver().nativeInsertMany(this.getCasbinRuleConstructor().name, lines);
+      await em.insertMany(this.getCasbinRuleConstructor(), lines);
+      await em.flush();
     }
 
     return true;
@@ -212,11 +258,7 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
   public async addPolicy(sec: string, ptype: string, rule: string[]) {
     const line = this.savePolicyLine(ptype, rule);
     const em = this.mikroOrm.em.fork();
-
-    await em.persistAndFlush(line)
-    // await getRepository(this.getCasbinRuleConstructor(), this.option.name).save(
-    //   line,
-    // );
+    await em.persistAndFlush(line);
   }
 
   /**
@@ -229,8 +271,8 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
       lines.push(line);
     }
     const em = this.mikroOrm.em.fork();
-
-    await em.getDriver().nativeInsertMany(this.getCasbinRuleConstructor().name, lines);
+    await em.insertMany(this.getCasbinRuleConstructor(), lines);
+    await em.flush();
   }
 
   /**
@@ -238,13 +280,8 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
    */
   public async removePolicy(sec: string, ptype: string, rule: string[]) {
     const line = this.savePolicyLine(ptype, rule);
-    // await getRepository(
-    //   this.getCasbinRuleConstructor(),
-    //   this.option.name,
-    // ).delete(line);
     const em = this.mikroOrm.em.fork();
-
-    await em.remove(line)
+    await em.nativeDelete(this.getCasbinRuleConstructor(), line);
   }
 
   /**
@@ -252,12 +289,10 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
    */
   public async removePolicies(sec: string, ptype: string, rules: string[][]) {
     const em = this.mikroOrm.em.fork();
-
     for (const rule of rules) {
-      const line = this.savePolicyLine(ptype, rule)
-      await em.remove(line);
+      const line = this.savePolicyLine(ptype, rule);
+      await em.nativeDelete(this.getCasbinRuleConstructor(), line);
     }
-    await em.clear();
   }
 
   /**
@@ -294,25 +329,28 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
     if (fieldIndex <= 6 && 6 < fieldIndex + fieldValues.length) {
       line.v6 = fieldValues[6 - fieldIndex];
     }
-    // await getRepository(
-    //   this.getCasbinRuleConstructor(),
-    //   this.option.name,
-    // ).delete(line);
-    // await this.em.remove(line)
-    await this.mikroOrm.em.getDriver().nativeDelete(this.getCasbinRuleConstructor().name, line)
+    const em = this.mikroOrm.em.fork();
+    await em.nativeDelete(this.getCasbinRuleConstructor(), line);
   }
 
   private getCasbinRuleConstructor(): CasbinRuleConstructor {
-    return MikroORMAdapter.getCasbinRuleType('mongodb');
+    // In shared mode, use the entity found in MikroORM metadata
+    if (this.isSharedInstance && this.casbinRuleEntity) {
+      return this.casbinRuleEntity;
+    }
+    
+    // In standalone mode, use built-in entities
+    const dbType = MikroORMAdapter.detectDatabaseType(this.option);
+    return MikroORMAdapter.getCasbinRuleType(dbType);
   }
 
   /**
    * Returns either a {@link CasbinRule} or a {@link CasbinMongoRule}, depending on the type. This switch is required as the normal
    * {@link CasbinRule} does not work when using MongoDB as a backend (due to a missing ObjectID field).
-   * @param type
+   * @param type - Database type (mongo, mongodb, mysql, postgresql, mariadb, sqlite, etc.)
    */
   private static getCasbinRuleType(type: string): CasbinRuleConstructor {
-    if (type === 'mongodb') {
+    if (type === 'mongo' || type === 'mongodb') {
       return CasbinMongoRule;
     }
     return CasbinRule;
