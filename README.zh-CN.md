@@ -1,71 +1,69 @@
-# Casbin MikroORM Adapter
+# Casbin MikroORM 适配器
 
 [![NPM version](https://img.shields.io/npm/v/@xltorg/casbin-mikroorm-adapter.svg)](https://www.npmjs.com/package/@xltorg/casbin-mikroorm-adapter)
 [![NPM download](https://img.shields.io/npm/dm/@xltorg/casbin-mikroorm-adapter.svg)](https://www.npmjs.com/package/@xltorg/casbin-mikroorm-adapter)
 [![License](https://img.shields.io/npm/l/@xltorg/casbin-mikroorm-adapter.svg)](https://github.com/casbin/casbin-mikroorm-adapter/blob/master/LICENSE)
 
-[English](./README.md) | [中文](./README.zh-CN.md)
+[Casbin](https://github.com/casbin/node-casbin) 的 MikroORM 适配器。通过此库，Casbin 可以从 MikroORM 支持的数据库中加载策略或将策略保存到数据库。
 
-MikroORM adapter for [Casbin](https://github.com/casbin/node-casbin). With this library, Casbin can load policy from MikroORM supported databases or save policy to it.
+## ✨ 特性
 
-## ✨ Features
+- 🚀 **MikroORM v6 支持** - 为 MikroORM v6.x 构建，完整的 TypeScript 支持
+- 🗄️ **多数据库支持** - 支持 MongoDB、MySQL、PostgreSQL、SQLite、MariaDB、MS SQL Server
+- 🔧 **灵活集成** - 独立模式或共享 MikroORM 实例模式
+- 📝 **自定义表名** - 可配置 Casbin 规则的自定义表名
+- 🎯 **类型安全** - 包含完整的 TypeScript 类型定义
+- 🔍 **过滤策略** - 支持加载过滤后的策略
+- ⚡ **批量操作** - 高效的批量添加/删除操作
+- 🔄 **自动检测** - 从驱动程序自动检测数据库类型
 
-- 🚀 **MikroORM v6 Support** - Built for MikroORM v6.x with full TypeScript support
-- 🗄️ **Multi-Database** - Supports MongoDB, MySQL, PostgreSQL, SQLite, MariaDB, MS SQL Server
-- 🔧 **Flexible Integration** - Standalone mode or shared MikroORM instance mode
-- 📝 **Custom Table Names** - Configure custom table names for Casbin rules
-- 🎯 **Type-Safe** - Full TypeScript type definitions included
-- 🔍 **Filtered Policy** - Support for loading filtered policies
-- ⚡ **Batch Operations** - Efficient batch add/remove operations
-- 🔄 **Auto-Detection** - Automatic database type detection from driver
+## 📋 版本兼容性
 
-## 📋 Version Compatibility
-
-| MikroORM Version | Adapter Version |
-|------------------|----------------|
+| MikroORM 版本 | 适配器版本 |
+|--------------|-----------|
 | v6.x | `@xltorg/casbin-mikroorm-adapter@^2.0.0` |
-| v5.x | `casbin-mikroorm-adapter@^1.x.x` (legacy) |
+| v5.x | `casbin-mikroorm-adapter@^1.x.x` (旧版) |
 
-## 🗄️ Supported Databases
+## 🗄️ 支持的数据库
 
-Based on [MikroORM Officially Supported Databases](https://mikro-orm.io):
+基于 [MikroORM 官方支持的数据库](https://mikro-orm.io)：
 
 - ✅ MongoDB
 - ✅ MySQL / MariaDB
 - ✅ PostgreSQL
 - ✅ SQLite
 - ✅ MS SQL Server
-- ⚠️ Oracle (not tested)
+- ⚠️ Oracle（未测试）
 
-## 📦 Installation
+## 📦 安装
 
 ```bash
 npm install @xltorg/casbin-mikroorm-adapter casbin @mikro-orm/core
-# or
+# 或
 pnpm add @xltorg/casbin-mikroorm-adapter casbin @mikro-orm/core
-# or
+# 或
 yarn add @xltorg/casbin-mikroorm-adapter casbin @mikro-orm/core
 ```
 
-**Install database driver:**
+**安装数据库驱动：**
 
 ```bash
-# For MongoDB
+# MongoDB
 npm install @mikro-orm/mongodb
 
-# For MySQL
+# MySQL
 npm install @mikro-orm/mysql
 
-# For PostgreSQL
+# PostgreSQL
 npm install @mikro-orm/postgresql
 
-# For SQLite
+# SQLite
 npm install @mikro-orm/sqlite
 ```
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Basic Usage (Standalone Mode)
+### 基础用法（独立模式）
 
 #### MongoDB
 
@@ -75,29 +73,29 @@ import MikroOrmAdapter, { MikroORMAdapterOptions } from '@xltorg/casbin-mikroorm
 import { MongoDriver } from '@mikro-orm/mongodb';
 
 async function main() {
-    // Configure adapter with type safety
+    // 类型安全的配置
     const options: MikroORMAdapterOptions = {
         driver: MongoDriver,
         clientUrl: 'mongodb://localhost:27017',
         dbName: 'casbin',
     };
     
-    // Create adapter and enforcer
+    // 创建适配器和执行器
     const adapter = await MikroOrmAdapter.newAdapter(options);
     const enforcer = await newEnforcer('model.conf', adapter);
 
-    // Load policies from database
+    // 从数据库加载策略
     await enforcer.loadPolicy();
 
-    // Check permissions
+    // 检查权限
     const allowed = await enforcer.enforce('alice', 'data1', 'read');
-    console.log('Permission granted:', allowed);
+    console.log('权限授予:', allowed);
 
-    // Add new policy
+    // 添加新策略
     await enforcer.addPolicy('bob', 'data2', 'write');
     await enforcer.savePolicy();
     
-    // Clean up
+    // 清理资源
     await adapter.close();
 }
 
@@ -119,7 +117,7 @@ async function main() {
         user: 'root',
         password: 'password',
         dbName: 'casbin',
-        tableName: 'sys_casbin_rule', // Optional: custom table name
+        tableName: 'sys_casbin_rule', // 可选：自定义表名
     };
     
     const adapter = await MikroOrmAdapter.newAdapter(options);
@@ -127,7 +125,7 @@ async function main() {
     await enforcer.loadPolicy();
     
     const allowed = await enforcer.enforce('alice', 'data1', 'read');
-    console.log('Access granted:', allowed);
+    console.log('访问授权:', allowed);
     
     await adapter.close();
 }
@@ -150,9 +148,9 @@ const adapter = await MikroOrmAdapter.newAdapter({
 });
 ```
 
-### Filtered Policy Loading
+### 过滤策略加载
 
-Load only specific policies that match the filter:
+仅加载符合过滤条件的特定策略：
 
 ```typescript
 import { newEnforcer } from 'casbin';
@@ -168,14 +166,14 @@ async function main() {
 
     const enforcer = await newEnforcer('model.conf', adapter);
 
-    // Load only alice's policies
+    // 仅加载 alice 的策略
     await enforcer.loadFilteredPolicy({
         ptype: 'p',
         v0: 'alice'
     });
 
-    // Check if filtered
-    console.log('Is filtered:', adapter.isFiltered()); // true
+    // 检查是否已过滤
+    console.log('是否已过滤:', adapter.isFiltered()); // true
 
     await enforcer.enforce('alice', 'data1', 'read');
     await adapter.close();
@@ -184,9 +182,9 @@ async function main() {
 main();
 ```
 
-### Shared MikroORM Instance Mode
+### 共享 MikroORM 实例模式
 
-Reuse an existing MikroORM instance (useful for NestJS or when you already have MikroORM configured):
+复用现有的 MikroORM 实例（适用于 NestJS 或已配置 MikroORM 的项目）：
 
 ```typescript
 import { MikroORM } from '@mikro-orm/core';
@@ -194,82 +192,82 @@ import { MySqlDriver } from '@mikro-orm/mysql';
 import MikroOrmAdapter from '@xltorg/casbin-mikroorm-adapter';
 import { newEnforcer } from 'casbin';
 
-// Your existing MikroORM instance
+// 你现有的 MikroORM 实例
 const orm = await MikroORM.init({
     driver: MySqlDriver,
     host: 'localhost',
     dbName: 'myapp',
-    entities: [/* your entities */],
+    entities: [/* 你的实体 */],
 });
 
-// Create adapter with shared instance
+// 使用共享实例创建适配器
 const adapter = await MikroOrmAdapter.newAdapter({
     mikroOrm: orm,
-    tableName: 'sys_casbin_rule', // Must match your entity's table name
+    tableName: 'sys_casbin_rule', // 必须与实体的表名匹配
 });
 
 const enforcer = await newEnforcer('model.conf', adapter);
 await enforcer.loadPolicy();
 
-// Note: Don't call adapter.close() in shared mode
-// The connection is managed by your main MikroORM instance
+// 注意：在共享模式下不要调用 adapter.close()
+// 连接由主 MikroORM 实例管理
 ```
 
-## 🔧 Configuration Options
+## 🔧 配置选项
 
 ### MikroORMAdapterOptions
 
 ```typescript
 interface MikroORMAdapterOptions extends Options {
     /**
-     * Custom table name for Casbin rules
+     * Casbin 规则的自定义表名
      * @default 'casbin_rule'
      */
     tableName?: string;
     
     /**
-     * Existing MikroORM instance (for shared mode)
-     * If provided, adapter will reuse this connection
+     * 现有的 MikroORM 实例（用于共享模式）
+     * 如果提供，适配器将复用此连接
      */
     mikroOrm?: MikroORM;
 }
 ```
 
-### Standalone Mode Options
+### 独立模式配置
 
 ```typescript
 const options: MikroORMAdapterOptions = {
-    driver: MySqlDriver,        // Required: Database driver
-    host: 'localhost',          // Database host
-    port: 3306,                 // Database port
-    user: 'root',               // Database user
-    password: 'password',       // Database password
-    dbName: 'casbin',           // Database name
-    tableName: 'casbin_rule',   // Optional: Custom table name
-    debug: false,               // Optional: Enable debug logging
-    pool: {                     // Optional: Connection pool settings
+    driver: MySqlDriver,        // 必需：数据库驱动
+    host: 'localhost',          // 数据库主机
+    port: 3306,                 // 数据库端口
+    user: 'root',               // 数据库用户
+    password: 'password',       // 数据库密码
+    dbName: 'casbin',           // 数据库名称
+    tableName: 'casbin_rule',   // 可选：自定义表名
+    debug: false,               // 可选：启用调试日志
+    pool: {                     // 可选：连接池设置
         min: 2,
         max: 10,
     },
 };
 ```
 
-### Shared Mode Options
+### 共享模式配置
 
 ```typescript
 const options: MikroORMAdapterOptions = {
-    mikroOrm: existingOrmInstance,  // Required: Your MikroORM instance
-    tableName: 'sys_casbin_rule',   // Required: Table name in your database
+    mikroOrm: existingOrmInstance,  // 必需：你的 MikroORM 实例
+    tableName: 'sys_casbin_rule',   // 必需：数据库中的表名
 };
 ```
 
-## 📚 API Reference
+## 📚 API 参考
 
-### Adapter Methods
+### 适配器方法
 
 #### `newAdapter(options: MikroORMAdapterOptions): Promise<MikroORMAdapter>`
 
-Create a new adapter instance.
+创建新的适配器实例。
 
 ```typescript
 const adapter = await MikroOrmAdapter.newAdapter({
@@ -281,7 +279,7 @@ const adapter = await MikroOrmAdapter.newAdapter({
 
 #### `loadPolicy(model: Model): Promise<void>`
 
-Load all policies from database.
+从数据库加载所有策略。
 
 ```typescript
 await enforcer.loadPolicy();
@@ -289,7 +287,7 @@ await enforcer.loadPolicy();
 
 #### `loadFilteredPolicy(model: Model, filter: object): Promise<void>`
 
-Load filtered policies from database.
+从数据库加载过滤后的策略。
 
 ```typescript
 await enforcer.loadFilteredPolicy({ ptype: 'p', v0: 'alice' });
@@ -297,7 +295,7 @@ await enforcer.loadFilteredPolicy({ ptype: 'p', v0: 'alice' });
 
 #### `savePolicy(model: Model): Promise<boolean>`
 
-Save all policies to database.
+将所有策略保存到数据库。
 
 ```typescript
 await enforcer.savePolicy();
@@ -305,7 +303,7 @@ await enforcer.savePolicy();
 
 #### `addPolicy(sec: string, ptype: string, rule: string[]): Promise<void>`
 
-Add a single policy rule.
+添加单个策略规则。
 
 ```typescript
 await enforcer.addPolicy('alice', 'data1', 'read');
@@ -313,7 +311,7 @@ await enforcer.addPolicy('alice', 'data1', 'read');
 
 #### `addPolicies(sec: string, ptype: string, rules: string[][]): Promise<void>`
 
-Add multiple policy rules in batch.
+批量添加多个策略规则。
 
 ```typescript
 await enforcer.addPolicies([
@@ -324,7 +322,7 @@ await enforcer.addPolicies([
 
 #### `removePolicy(sec: string, ptype: string, rule: string[]): Promise<void>`
 
-Remove a single policy rule.
+删除单个策略规则。
 
 ```typescript
 await enforcer.removePolicy('alice', 'data1', 'read');
@@ -332,7 +330,7 @@ await enforcer.removePolicy('alice', 'data1', 'read');
 
 #### `removePolicies(sec: string, ptype: string, rules: string[][]): Promise<void>`
 
-Remove multiple policy rules in batch.
+批量删除多个策略规则。
 
 ```typescript
 await enforcer.removePolicies([
@@ -343,19 +341,19 @@ await enforcer.removePolicies([
 
 #### `removeFilteredPolicy(sec: string, ptype: string, fieldIndex: number, ...fieldValues: string[]): Promise<void>`
 
-Remove policies that match the filter.
+删除符合过滤条件的策略。
 
 ```typescript
-// Remove all policies for alice
+// 删除 alice 的所有策略
 await enforcer.removeFilteredPolicy(0, 'alice');
 
-// Remove all read permissions for data1
+// 删除 data1 的所有读取权限
 await enforcer.removeFilteredPolicy(1, 'data1', 'read');
 ```
 
 #### `isFiltered(): boolean`
 
-Check if the adapter is in filtered mode.
+检查适配器是否处于过滤模式。
 
 ```typescript
 const filtered = adapter.isFiltered();
@@ -363,23 +361,23 @@ const filtered = adapter.isFiltered();
 
 #### `close(): Promise<void>`
 
-Close the database connection (only in standalone mode).
+关闭数据库连接（仅在独立模式下）。
 
 ```typescript
 await adapter.close();
 ```
 
-## 🔄 Migration from v1.x
+## 🔄 从 v1.x 迁移
 
-See [MIGRATION.md](./MIGRATION.md) for detailed upgrade guide.
+详细的升级指南请参阅 [MIGRATION.md](./MIGRATION.md)。
 
-**Key Changes:**
-- MikroORM v6 requires `driver` field instead of `type`
-- Import from `@xltorg/casbin-mikroorm-adapter`
-- New `tableName` option for custom table names
-- New shared MikroORM instance mode
+**主要变更：**
+- MikroORM v6 需要使用 `driver` 字段而不是 `type`
+- 从 `@xltorg/casbin-mikroorm-adapter` 导入
+- 新增 `tableName` 选项支持自定义表名
+- 新增共享 MikroORM 实例模式
 
-## 🤝 NestJS Integration
+## 🤝 NestJS 集成
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -388,7 +386,7 @@ import MikroOrmAdapter from '@xltorg/casbin-mikroorm-adapter';
 import { newEnforcer, Enforcer } from 'casbin';
 
 @Module({
-    imports: [MikroOrmModule.forRoot(/* your config */)],
+    imports: [MikroOrmModule.forRoot(/* 你的配置 */)],
     providers: [
         {
             provide: 'CASBIN_ENFORCER',
@@ -410,29 +408,29 @@ import { newEnforcer, Enforcer } from 'casbin';
 export class CasbinModule {}
 ```
 
-## 📖 Documentation
+## 📖 文档
 
-- [Usage Guide](./USAGE.md) - Detailed usage examples
-- [Migration Guide](./MIGRATION.md) - Upgrade from v1.x to v2.x
-- [Changelog](./CHANGELOG.md) - Version history
-- [Casbin Documentation](https://casbin.org/docs/overview)
-- [MikroORM Documentation](https://mikro-orm.io/docs)
+- [使用指南](./USAGE.md) - 详细的使用示例
+- [迁移指南](./MIGRATION.md) - 从 v1.x 升级到 v2.x
+- [更新日志](./CHANGELOG.md) - 版本历史
+- [Casbin 文档](https://casbin.org/docs/overview)
+- [MikroORM 文档](https://mikro-orm.io/docs)
 
-## 🤝 Contributing
+## 🤝 贡献
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+欢迎贡献！请随时提交 Pull Request。
 
-## 📄 License
+## 📄 许可证
 
-This project is licensed under the Apache 2.0 License.
+本项目采用 Apache 2.0 许可证。
 
-## 🔗 Links
+## 🔗 链接
 
-- [Casbin Website](https://casbin.org)
+- [Casbin 官网](https://casbin.org)
 - [Casbin GitHub](https://github.com/casbin/node-casbin)
-- [MikroORM Website](https://mikro-orm.io)
-- [NPM Package](https://www.npmjs.com/package/@xltorg/casbin-mikroorm-adapter)
+- [MikroORM 官网](https://mikro-orm.io)
+- [NPM 包](https://www.npmjs.com/package/@xltorg/casbin-mikroorm-adapter)
 
-## ⭐ Support
+## ⭐ 支持
 
-If this project helps you, please give it a ⭐️!
+如果这个项目对你有帮助，请给它一个 ⭐️！
