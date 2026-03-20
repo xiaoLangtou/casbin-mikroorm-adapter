@@ -213,6 +213,60 @@ await enforcer.loadPolicy();
 // 连接由主 MikroORM 实例管理
 ```
 
+### 自定义实体（继承基类）
+
+当你需要添加自定义字段或使用自定义表名时，请继承基类而不是直接使用内置实体：
+
+#### SQL 数据库（MySQL、PostgreSQL 等）
+
+```typescript
+import { Entity, Property } from '@mikro-orm/core';
+import { BaseCasbinRule } from '@xltorg/casbin-mikroorm-adapter';
+
+@Entity({
+    tableName: 'sys_casbin_rule',
+    comment: 'Casbin 规则表',
+})
+export class CasbinRuleEntity extends BaseCasbinRule {
+    @Property({ name: 'created_date' })
+    createdDate: Date = new Date();
+
+    @Property({ name: 'updated_date' })
+    updatedDate: Date = new Date();
+}
+```
+
+#### MongoDB
+
+```typescript
+import { Entity, Property } from '@mikro-orm/core';
+import { BaseCasbinMongoRule } from '@xltorg/casbin-mikroorm-adapter';
+
+@Entity({ tableName: 'sys_casbin_rule' })
+export class CustomCasbinMongoRule extends BaseCasbinMongoRule {
+    @Property()
+    customField?: string;
+}
+```
+
+然后配合共享 MikroORM 实例使用：
+
+```typescript
+import { MikroORM } from '@mikro-orm/core';
+import MikroOrmAdapter from '@xltorg/casbin-mikroorm-adapter';
+import { CasbinRuleEntity } from './entities/casbin.entity';
+
+const orm = await MikroORM.init({
+    entities: [CasbinRuleEntity, /* 其他实体 */],
+    // ... 其他配置
+});
+
+const adapter = await MikroOrmAdapter.newAdapter({
+    mikroOrm: orm,
+    tableName: 'sys_casbin_rule', // 必须与实体的表名匹配
+});
+```
+
 ## 🔧 配置选项
 
 ### MikroORMAdapterOptions

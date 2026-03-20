@@ -1,6 +1,6 @@
 {
   "name": "@xltorg/casbin-mikroorm-adapter",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "MikroORM v6 adapter for Casbin",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
@@ -31,6 +31,14 @@
     "orm"
   ],
   "author": "Node-Casbin",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaoLangtou/casbin-mikroorm-adapter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xiaoLangtou/casbin-mikroorm-adapter/issues"
+  },
   "devDependencies": {
     "@ava/typescript": "^3.0.1",
     "@types/jest": "^29.5.0",

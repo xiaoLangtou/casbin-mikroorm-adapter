@@ -38,31 +38,31 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
       a = new MikroORMAdapter(option);
       a.mikroOrm = option.mikroOrm;
       a.isSharedInstance = true;
-      
+
       // Find the Casbin entity by table name in shared instance
       const tableName = option.tableName || 'sys_casbin_rule';
       const metadata = a.mikroOrm.getMetadata();
-      const allEntities = metadata.getAll();
-      
+      const registeredEntities = metadata.getAll();
+
       // Find entity by table name
-      for (const [entityName, meta] of Object.entries(allEntities)) {
+      for (const [entityName, meta] of Object.entries(registeredEntities)) {
         if (meta.tableName === tableName) {
           a.casbinRuleEntity = meta.class;
           break;
         }
       }
-      
+
       if (!a.casbinRuleEntity) {
         throw new Error(`Casbin entity with table name '${tableName}' not found in MikroORM metadata. Please ensure the entity is registered in your MikroORM configuration.`);
       }
-      
+
       return a;
     }
-    
+
     // Standalone mode: create new connection
     const dbType = this.detectDatabaseType(option);
     const casbinEntity = this.getCasbinRuleType(dbType);
-    
+
     // Apply custom table name if specified
     if (option.tableName) {
       const metadata = MetadataStorage.getMetadataFromDecorator(casbinEntity);
@@ -70,14 +70,14 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
         metadata.tableName = option.tableName;
       }
     }
-    
+
     // Merge Casbin entity with user's entities if they exist
     const opts = option as any;
     const userEntities = opts.entities || [];
-    const allEntities = Array.isArray(userEntities) 
+    const allEntities = Array.isArray(userEntities)
       ? [...userEntities, casbinEntity]
       : [casbinEntity];
-    
+
     const configuration = Object.assign({}, option, { entities: allEntities });
     a = new MikroORMAdapter(configuration);
     await a.open();
@@ -94,24 +94,24 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
     if (option.mikroOrm) {
       const driverName = option.mikroOrm.config.get('driver')?.name || '';
       const lowerName = driverName.toLowerCase();
-      
+
       if (lowerName.includes('mongo')) return 'mongo';
       if (lowerName.includes('mysql')) return 'mysql';
       if (lowerName.includes('postgres') || lowerName.includes('pg')) return 'postgresql';
       if (lowerName.includes('sqlite')) return 'sqlite';
       if (lowerName.includes('mariadb')) return 'mariadb';
       if (lowerName.includes('mssql') || lowerName.includes('sqlserver')) return 'mssql';
-      
+
       return 'mysql'; // default
     }
-    
+
     const opts = option as any;
-    
+
     // Check driver field (required in MikroORM v6)
     if (opts.driver) {
       const driverName = opts.driver.name || opts.driver.constructor?.name || '';
       const lowerName = driverName.toLowerCase();
-      
+
       if (lowerName.includes('mongo')) return 'mongo';
       if (lowerName.includes('mysql')) return 'mysql';
       if (lowerName.includes('postgres') || lowerName.includes('pg')) return 'postgresql';
@@ -119,12 +119,12 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
       if (lowerName.includes('mariadb')) return 'mariadb';
       if (lowerName.includes('mssql') || lowerName.includes('sqlserver')) return 'mssql';
     }
-    
+
     // Fallback: try to detect from clientUrl for MongoDB
     if (opts.clientUrl && opts.clientUrl.includes('mongodb://')) {
       return 'mongo';
     }
-    
+
     // Default to relational database (use CasbinRule)
     return 'mysql';
   }
@@ -144,7 +144,7 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
     if (this.isSharedInstance) {
       return;
     }
-    
+
     const isConnected = await this.mikroOrm.isConnected();
     if (isConnected) {
       await this.mikroOrm.close(true);
@@ -338,7 +338,7 @@ export default class MikroORMAdapter implements FilteredAdapter, BatchAdapter {
     if (this.isSharedInstance && this.casbinRuleEntity) {
       return this.casbinRuleEntity;
     }
-    
+
     // In standalone mode, use built-in entities
     const dbType = MikroORMAdapter.detectDatabaseType(this.option);
     return MikroORMAdapter.getCasbinRuleType(dbType);

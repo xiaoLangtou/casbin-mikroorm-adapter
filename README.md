@@ -215,6 +215,60 @@ await enforcer.loadPolicy();
 // The connection is managed by your main MikroORM instance
 ```
 
+### Custom Entity (Extending Base Classes)
+
+When you need to add custom fields or use a custom table name, extend the base classes instead of using the built-in entities directly:
+
+#### SQL Databases (MySQL, PostgreSQL, etc.)
+
+```typescript
+import { Entity, Property } from '@mikro-orm/core';
+import { BaseCasbinRule } from '@xltorg/casbin-mikroorm-adapter';
+
+@Entity({
+    tableName: 'sys_casbin_rule',
+    comment: 'Casbin rules table',
+})
+export class CasbinRuleEntity extends BaseCasbinRule {
+    @Property({ name: 'created_date' })
+    createdDate: Date = new Date();
+
+    @Property({ name: 'updated_date' })
+    updatedDate: Date = new Date();
+}
+```
+
+#### MongoDB
+
+```typescript
+import { Entity, Property } from '@mikro-orm/core';
+import { BaseCasbinMongoRule } from '@xltorg/casbin-mikroorm-adapter';
+
+@Entity({ tableName: 'sys_casbin_rule' })
+export class CustomCasbinMongoRule extends BaseCasbinMongoRule {
+    @Property()
+    customField?: string;
+}
+```
+
+Then use with shared MikroORM instance:
+
+```typescript
+import { MikroORM } from '@mikro-orm/core';
+import MikroOrmAdapter from '@xltorg/casbin-mikroorm-adapter';
+import { CasbinRuleEntity } from './entities/casbin.entity';
+
+const orm = await MikroORM.init({
+    entities: [CasbinRuleEntity, /* other entities */],
+    // ... other config
+});
+
+const adapter = await MikroOrmAdapter.newAdapter({
+    mikroOrm: orm,
+    tableName: 'sys_casbin_rule', // Must match your entity's table name
+});
+```
+
 ## 🔧 Configuration Options
 
 ### MikroORMAdapterOptions

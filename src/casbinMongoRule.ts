@@ -1,8 +1,23 @@
 import { Entity, PrimaryKey, Property, SerializedPrimaryKey } from '@mikro-orm/core';
 import { ObjectId } from '@mikro-orm/mongodb';
 
-@Entity({ tableName: 'casbin_rule' })
-export class CasbinMongoRule {
+/**
+ * Base class for Casbin rule entities (MongoDB).
+ * Use this class when you need to create a custom entity with additional fields or custom collection name.
+ *
+ * @example
+ * ```typescript
+ * import { Entity, Property } from '@mikro-orm/core';
+ * import { BaseCasbinMongoRule } from '@xltorg/casbin-mikroorm-adapter';
+ *
+ * @Entity({ tableName: 'sys_casbin_rule' })
+ * export class CustomCasbinMongoRule extends BaseCasbinMongoRule {
+ *   @Property()
+ *   customField: string;
+ * }
+ * ```
+ */
+export abstract class BaseCasbinMongoRule {
   @PrimaryKey()
   _id!: ObjectId;
 
@@ -44,3 +59,10 @@ export class CasbinMongoRule {
     this.updatedAt = new Date().toISOString();
   }
 }
+
+/**
+ * Default Casbin rule entity for MongoDB.
+ * Used internally by the adapter in standalone mode.
+ */
+@Entity({ tableName: 'casbin_rule' })
+export class CasbinMongoRule extends BaseCasbinMongoRule {}

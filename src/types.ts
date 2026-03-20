@@ -2,14 +2,14 @@ import { Options, MikroORM } from '@mikro-orm/core';
 
 /**
  * MikroORM Adapter Options
- * 
+ *
  * Note: In MikroORM v6, the `type` option has been removed.
  * You must use the `driver` option instead.
- * 
+ *
  * @example
  * ```typescript
  * import { MySqlDriver } from '@mikro-orm/mysql';
- * 
+ *
  * // Option 1: Create new connection (standalone mode)
  * const options: MikroORMAdapterOptions = {
  *   driver: MySqlDriver,
@@ -17,7 +17,7 @@ import { Options, MikroORM } from '@mikro-orm/core';
  *   dbName: 'casbin',
  *   tableName: 'sys_casbin_rule',
  * };
- * 
+ *
  * // Option 2: Share existing MikroORM instance
  * const options: MikroORMAdapterOptions = {
  *   mikroOrm: existingMikroOrmInstance,
